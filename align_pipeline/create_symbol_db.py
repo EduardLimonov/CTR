@@ -104,7 +104,7 @@ def create_db(db_path_name, checkpoint_path, dataloader):
                             # последний символ, справа нужно обрезать изображение
                             sides_to_crop.append(Side.right)
                         
-                        img = PicHandler.crop_by_blank(sides_to_crop)
+                        img = (1 - PicHandler.crop_by_blank(img, sides_to_crop, blank=1)) * 255
                         view_image(img)
                         append_to_dict(f, tstart, img, sizes)
 
