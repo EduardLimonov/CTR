@@ -204,11 +204,18 @@ class PicHandler:
                 side = [side]
 
         for s in side:
+            """
             match s:
                 case Side.left: x_min = np.where(np.all(img != blank_line, axis=0))[0]
                 case Side.right: x_max = np.where(np.all(img != blank_line, axis=0))[-1]
                 case Side.left: y_min = np.where(np.all(img != blank_line, axis=1))[0]
-                case Side.left: x_max = np.where(np.all(img != blank_line, axis=1))[-1]
+                case Side.left: x_max = np.where(np.all(img != blank_line, axis=1))[-1]"""
+            
+            
+            if s == Side.left: x_min = np.where(np.all(img != blank_line, axis=0))[0]
+            elif s == Side.right: x_max = np.where(np.all(img != blank_line, axis=0))[-1]
+            elif s == Side.left: y_min = np.where(np.all(img != blank_line, axis=1))[0]
+            elif s == Side.left: x_max = np.where(np.all(img != blank_line, axis=1))[-1]
 
         return img[y_min: y_max, x_min: x_max]
 

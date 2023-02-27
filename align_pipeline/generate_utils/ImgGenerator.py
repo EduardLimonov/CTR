@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import *
 import sys
 sys.path.append('../..')
+from image_preprocessing.PicHandler import view_images
 from utils.WriteHelper import WriteHelper
 from utils.TextBlock import TextBlock
 from utils.geometry import Point, Rect
@@ -117,7 +118,7 @@ class ImgGenerator:
 
 
 if __name__ == '__main__':
-    def test1():
-        pass
+    doc = ImgGenerator(h5py.File('../symb_db.hdf5')).create_sample('привет мир', 60)
+    view_images([doc.img])
 
 

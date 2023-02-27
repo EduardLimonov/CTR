@@ -19,7 +19,7 @@ from utils.WriteHelper import WriteHelper
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-alphabet = list(""" ,.:!?-—;""") + WriteHelper.trivial_alphabet#alphabet
+alphabet = [' '] + WriteHelper.trivial_alphabet + list(""",.:!?-—;""")#alphabet
 NULL_SYMB = '^'
 
 
@@ -51,7 +51,7 @@ def get_data(data_path):
 
 def collate_fn(batch):
     max_len = len(max(batch, key=lambda e: len(e[1]))[1])
-    labels = torch.zeros((len(batch), max_len), dtype=torch.float16, device=device)
+    labels = torch.zeros((len(batch), max_len), dtype=torch.float16)
 
     lens = np.array([len(e[1]) for e in batch])
     to_pad = max_len - lens
@@ -60,9 +60,9 @@ def collate_fn(batch):
         target = batch[i][1]
         labels[i] = torch.cat((tensor(target), torch.zeros(to_pad[i])))
 
-    X = torch.as_tensor(np.array([e[0] for e in batch]), dtype=torch.float32, device=device)
+    X = torch.as_tensor(np.array([e[0] for e in batch]), dtype=torch.float32)
     return X.view(-1, 1, X.shape[1], X.shape[2]), \
-        (labels, torch.as_tensor(lens, dtype=torch.int32, device=device))
+        (labels, torch.as_tensor(lens, dtype=torch.int32))
 
 
 def get_loaders(batch_size, data_path, num_workers, lowercase_labels: bool = True):

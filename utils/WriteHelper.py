@@ -5,7 +5,7 @@ class WriteHelper:
     SUPERSCRIPT: Set[str] = {s for s in 'бвёйАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ'}
     SUBSCRIPT: Set[str] = {s for s in 'дзруф'}
     alphabet: List[str] = [char for char in """АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчшщъыьэюя"""]
-    trivial_alphabet: List[str] = sorted(list(str(alphabet).lower()))
+    trivial_alphabet: List[str] = [char for char in """абвгдеёжзийклмнопрстуфхцчшщъыьэюя"""]
     punctuation: List[str] = [char for char in ",.;!?"]
     
     OUT_OF_LINE_HEIGHT: float = 0.9

@@ -1,3 +1,4 @@
+# coding=utf8
 """
 Скрипт создает словарь с образцами изображений каждого символа.
 Ключ: символ;
@@ -23,13 +24,14 @@ from create_dataset import default_shape
 import sys
 sys.path.append('..')
 sys.path.append('..\\..')
-from image_preprocessing.PicHandler import PicHandler, Side, view_image
+from image_preprocessing.PicHandler import PicHandler, Side, view_images
 from model.model import *  # чтобы можно было загрузить модель
 from tqdm import tqdm
 
 BATCH_SIZE = 32
 DEFAULT_SAMPLES = 1000
 DSHAPE = 250
+SHAPE_FOR_SYMBOL = (128, 256)
 
 
 def decode(y_pred: str) -> str:
@@ -45,20 +47,22 @@ def decode(y_pred: str) -> str:
 
         if s != actual_symb:
             res += s
+            actual_symb = s
     
-    return res
+    return res.replace(NULL_SYMB, '')
+
 
 def append_to_dict(db_dict, k, v, sizes):
     if k not in sizes.keys():
         sizes[k] = 0
-        db_dict.create_dataset(k, (DEFAULT_SAMPLES, *default_shape), compression="gzip", 
+        db_dict.create_dataset(k, (DEFAULT_SAMPLES, *SHAPE_FOR_SYMBOL), compression="gzip", 
                                compression_opts=4, maxshape=(None, *default_shape))
 
     if sizes[k] == len(db_dict[k]):
         # нужно увеличить
        db_dict[k].resize((len(db_dict[k]) + DSHAPE, *default_shape))
 
-    db_dict[k][sizes[k], :, :] = v
+    db_dict[k][sizes[k], : v.shape[0], : v.shape[1]] = v
     sizes[k] += 1
 
 
@@ -76,14 +80,17 @@ def create_db(db_path_name, checkpoint_path, dataloader):
     with h5py.File(db_path_name, 'w') as f:
 
         for X, y in tqdm(dataloader):
-            y_pred = model(X)
+            y_pred = model(X.to(device))
+            #print(X.shape)
+            #print(y[0].shape)
             for i in range(len(X)):
                 # рассмотрим одно изображение в батче
                 w = X[i].shape[1]
                 scale = w / y_pred[i].shape[1]
-
-                y_pred_str = str([num_to_char(n) for n in y_pred[i].argmax(dim=1)])
-                y_true_str = str([num_to_char(n) for n in y[i][1]])
+                
+                y_pred_str = ''.join([num_to_char(n) for n in y_pred[i].argmax(dim=1)])
+                y_true_str = ''.join([num_to_char(n) for n in y[0][i][: y[1][i]]])
+                print(y_true_str, decode(y_pred_str))
 
                 if decode(y_pred_str) != y_true_str:
                     continue
@@ -98,15 +105,16 @@ def create_db(db_path_name, checkpoint_path, dataloader):
                         # мы нашли границу 
                         next_width = end_symb - start_symb
                         real_width = scale * next_width
-                        img = X[i][start_symb*scale: min(start_symb*scale + real_width, w - 1)] 
+                        img = X[i][0, :, int(start_symb*scale): min(int(start_symb*scale + real_width) + 1, w - 1)].cpu().numpy()
                         sides_to_crop = [Side.top, Side.bottom]
                         if cnt_symb == len(y_true_str) - 1:
                             # последний символ, справа нужно обрезать изображение
                             sides_to_crop.append(Side.right)
                         
-                        img = (1 - PicHandler.crop_by_blank(img, sides_to_crop, blank=1)) * 255
-                        view_image(img)
+                        img = (1 - PicHandler.crop_by_blank(img, sides_to_crop, blank_line=1)) * 255
                         append_to_dict(f, tstart, img, sizes)
+                        print("appended %s" % tstart)
+                        view_images([img])
 
                         start_symb = end_symb
                         tstart = y_pred_str[start_symb]  # точно != NULL_SYMB          
