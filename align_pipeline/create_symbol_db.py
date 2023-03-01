@@ -22,11 +22,13 @@ import torch
 from model.load_data import *
 from create_dataset import default_shape
 import sys
+from pytorch_lightning import LightningModule
 sys.path.append('..')
 sys.path.append('..\\..')
 from image_preprocessing.PicHandler import PicHandler, Side, view_images
 from model.model import *  # чтобы можно было загрузить модель
 from tqdm import tqdm
+from learn_model import *
 from skimage.transform import rescale
 
 BATCH_SIZE = 32
@@ -136,6 +138,11 @@ def create_db(db_path_name, checkpoint_path, dataloader):
 if __name__ == '__main__':
     dataset_path, checkpoint_path, num_workers, db_path = sys.argv[1:]
 
+    model = LightningModule.load_from_checkpoint(checkpoint_path)
+    model.eval()
+    #print(model.keys())
+    #print(model['epoch'].keys())
+    exit()
     train_loader = get_loaders(BATCH_SIZE, dataset_path, num_workers)['train']
 
     create_db(db_path, checkpoint_path, train_loader)

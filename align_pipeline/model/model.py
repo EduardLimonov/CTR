@@ -67,7 +67,7 @@ class LModel(pl.LightningModule):
     
     def configure_optimizers(self):
         optimizer = torch.optim.RMSprop(self.parameters(), lr=1e-3)
-        sched = ReduceLROnPlateau(optimizer, verbose=True, patience=4)
+        sched = ReduceLROnPlateau(optimizer, verbose=True, patience=3)
         return {
             "optimizer": optimizer, 
             "lr_scheduler": {

@@ -24,8 +24,8 @@ if __name__ == '__main__':
     loaders = get_loaders(batch_size=32, data_path=sys.argv[1], num_workers=int(sys.argv[3]))
 
     models = [
-        LModel(RecogModel()), 
-        LModel(RecogModel2()), 
+        #LModel(RecogModel()), 
+        #LModel(RecogModel2()), 
         LModel(RecogModel3())
     ]
     #logger = TensorBoardLogger("tb_logs", name="rec_model")
@@ -33,7 +33,7 @@ if __name__ == '__main__':
 
     for model in models:
         early_stop_callback = EarlyStopping(monitor="val_loss", min_delta=0.005,
-                                            patience=6, verbose=True, mode="min")
+                                            patience=5, verbose=True, mode="min")
         trainer = pl.Trainer(
             devices=1, accelerator="auto",
             max_epochs=80,
