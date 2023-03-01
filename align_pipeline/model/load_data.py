@@ -19,7 +19,7 @@ from utils.WriteHelper import WriteHelper
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-alphabet = [' '] + WriteHelper.trivial_alphabet + list(""",.:!?-—;""")#alphabet
+alphabet = [' '] + WriteHelper.trivial_alphabet + list(""",.:!?-—;()""")#alphabet
 NULL_SYMB = '^'
 
 

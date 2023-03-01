@@ -27,11 +27,17 @@ sys.path.append('..\\..')
 from image_preprocessing.PicHandler import PicHandler, Side, view_images
 from model.model import *  # чтобы можно было загрузить модель
 from tqdm import tqdm
+from skimage.transform import rescale
 
 BATCH_SIZE = 32
 DEFAULT_SAMPLES = 1000
 DSHAPE = 250
-SHAPE_FOR_SYMBOL = (128, 256)
+IMG_DOWNSCALE = 2
+big_img_h = default_shape[0]
+new_h = big_img_h / IMG_DOWNSCALE
+SHAPE_FOR_SYMBOL = (new_h, new_h * 2) #(128, 256)
+
+downcale_k = 1 / IMG_DOWNSCALE
 
 
 def decode(y_pred: str) -> str:
@@ -61,6 +67,8 @@ def append_to_dict(db_dict, k, v, sizes):
     if sizes[k] == len(db_dict[k]):
         # нужно увеличить
        db_dict[k].resize((len(db_dict[k]) + DSHAPE, *default_shape))
+
+    v = rescale(v, downcale_k)
 
     db_dict[k][sizes[k], : v.shape[0], : v.shape[1]] = v
     sizes[k] += 1

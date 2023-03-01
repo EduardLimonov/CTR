@@ -20,6 +20,7 @@ class RecogModel(nn.Module):
                 #extended_conv_layer(img_shape=(64, 512), in_channels=16, out_channels=32, kernel_size=3, padding=1),
                 #nn.Dropout2d(p=0.2),
                 nn.MaxPool2d(kernel_size=2, stride=2),
+                nn.Tanh(),
 
                 # 64x32x256
                 #nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, padding=1),
