@@ -31,7 +31,7 @@ from tqdm import tqdm
 from learn_model import *
 from skimage.transform import rescale
 
-BATCH_SIZE = 32
+BATCH_SIZE = 1
 DEFAULT_SAMPLES = 1000
 DSHAPE = 250
 IMG_DOWNSCALE = 2
@@ -82,8 +82,45 @@ def collate_dict(db_dict, sizes):
         db_dict[k].resize((real_size, *default_shape))
 
 
-def create_db(db_path_name, checkpoint_path, dataloader):
-    model = torch.load(checkpoint_path, map_location=device)
+def improve_symb_borders(symbol_widths: list[tuple[str, int]], word_width: int, 
+                         max_increase=10, max_decrease=5, begin_w=1, end_w=2) \
+                            -> list[tuple[int, int]]:
+
+    # возвращает список границ для каждого символа
+    # мы считаем, что сеть +- правильно нашла центры областей символов, но мб
+    # не очень точно определила границы каждого символа; уточним их на основе 
+    # априорной информации о ширине символов
+    bw, ew = begin_w / (begin_w + end_w), end_w / (begin_w + end_w)
+    res = []
+
+    aprior_precision = WriteHelper.get_symb_widths(
+        [s for s, w in symbol_widths], word_width
+    )
+    
+    tstart = 0
+    for (symb, width), aprior_width in zip(symbol_widths, aprior_precision):
+        end = tstart + width
+        delta = aprior_width - width
+        modify = 0
+        if delta > 0:
+            modify = min(delta, max_increase)
+        elif delta < 0:
+            modify = max(delta, -max_decrease) 
+        
+        res.append(
+            (
+                int(max(tstart - modify * bw, 0)), 
+                int(min(end + modify * ew, word_width - 1))
+            )
+        )
+        tstart = end
+
+    return res
+
+
+def create_db(db_path_name, checkpoint_path, dataloader, empty_space_threshold: float = 0.07):
+    model = LModel.load_from_checkpoint(checkpoint_path, 
+        map_location=device, model=RecogModel3())
     model.eval()
     sizes = dict()
 
@@ -91,46 +128,64 @@ def create_db(db_path_name, checkpoint_path, dataloader):
 
         for X, y in tqdm(dataloader):
             y_pred = model(X.to(device))
-            #print(X.shape)
-            #print(y[0].shape)
+
             for i in range(len(X)):
                 # рассмотрим одно изображение в батче
-                w = X[i].shape[1]
-                scale = w / y_pred[i].shape[1]
+                w = X[i].shape[-1]
+                scale = w / y_pred[i].shape[0]
                 
                 y_pred_str = ''.join([num_to_char(n) for n in y_pred[i].argmax(dim=1)])
                 y_true_str = ''.join([num_to_char(n) for n in y[0][i][: y[1][i]]])
-                print(y_true_str, decode(y_pred_str))
 
-                if decode(y_pred_str) != y_true_str:
+                if decode(y_pred_str) != y_true_str.lower():
                     continue
 
                 start_symb = 0
                 end_symb = 0
-                tstart = y_true_str[0]
+                tstart = y_true_str[0].lower()
                 cnt_symb = 0
                 
-                while end_symb < w:
-                    if tstart != y_pred_str[end_symb] and y_pred_str[end_symb] != NULL_SYMB:
+                symbol_widths = []
+
+                img_hor_cropped = PicHandler.crop_by_blank(
+                    X[i, 0].cpu().numpy(), blank_line=0, blank_delta=empty_space_threshold
+                )
+
+                sum_w = 0
+                while end_symb < len(y_pred_str):
+                    if tstart != y_pred_str[end_symb] and (y_pred_str[end_symb] != NULL_SYMB or end_symb == len(y_pred_str) - 1):
                         # мы нашли границу 
                         next_width = end_symb - start_symb
-                        real_width = scale * next_width
-                        img = X[i][0, :, int(start_symb*scale): min(int(start_symb*scale + real_width) + 1, w - 1)].cpu().numpy()
-                        sides_to_crop = [Side.top, Side.bottom]
-                        if cnt_symb == len(y_true_str) - 1:
-                            # последний символ, справа нужно обрезать изображение
-                            sides_to_crop.append(Side.right)
-                        
-                        img = (1 - PicHandler.crop_by_blank(img, sides_to_crop, blank_line=1)) * 255
-                        append_to_dict(f, tstart, img, sizes)
-                        print("appended %s" % tstart)
-                        view_images([img])
+                        real_width = min(scale * next_width, 
+                                        img_hor_cropped.shape[-1] - sum_w)
+                        symbol_widths.append((tstart, real_width))
+                        sum_w += real_width
 
                         start_symb = end_symb
                         tstart = y_pred_str[start_symb]  # точно != NULL_SYMB          
                         cnt_symb += 1
 
                     end_symb += 1
+                
+                # имеем массив symbol_widths -- предположительная ширина каждого 
+                # символа в слове
+                borders = improve_symb_borders(
+                    symbol_widths, img_hor_cropped.shape[1],
+                    max_increase = 10, max_decrease = 12
+                )
+                for symb, (l, r) in zip(y_true_str, borders):
+                    if WriteHelper.is_space(symb):
+                        continue
+                    img = X[i, 0, :, l: r].cpu().numpy()
+                    try:
+                        crop_res = PicHandler.crop_by_blank(img, [Side.top, Side.bottom], blank_line=0, blank_delta=empty_space_threshold)
+                    except:
+                        # в окно по какой-то причине попало пустое пространство
+                        continue
+                    img = (1 - crop_res) * 255
+                    if min(crop_res.shape) <= 4: 
+                        continue
+                    append_to_dict(f, WriteHelper.to_hdf5_key(symb), img, sizes)
 
         collate_dict(f, sizes)
 
@@ -138,11 +193,6 @@ def create_db(db_path_name, checkpoint_path, dataloader):
 if __name__ == '__main__':
     dataset_path, checkpoint_path, num_workers, db_path = sys.argv[1:]
 
-    model = LightningModule.load_from_checkpoint(checkpoint_path)
-    model.eval()
-    #print(model.keys())
-    #print(model['epoch'].keys())
-    exit()
     train_loader = get_loaders(BATCH_SIZE, dataset_path, num_workers)['train']
 
     create_db(db_path, checkpoint_path, train_loader)

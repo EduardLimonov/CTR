@@ -1,4 +1,7 @@
 from typing import *
+import pickle
+
+PATH_TO_MEAN_WIDTHS = '../resource/mean_symb_width'
 
 
 class WriteHelper:
@@ -9,6 +12,9 @@ class WriteHelper:
     punctuation: List[str] = [char for char in ",.;!?"]
     
     OUT_OF_LINE_HEIGHT: float = 0.9
+
+    with open(PATH_TO_MEAN_WIDTHS, 'rb') as f:
+        widths = pickle.load(f)
 
     @staticmethod
     def __have_script(s: str, charset: Set[str]) -> bool:
@@ -47,3 +53,38 @@ class WriteHelper:
     @staticmethod
     def has_spaces(s: str) -> bool:
         return ' ' in s
+
+    @staticmethod
+    def get_symb_widths(symbols: List[str], word_width: int) -> List[int]:
+        symb_w_relative = [WriteHelper.__get_symb_w(s) * WriteHelper.__get_coef(s) for s in symbols]
+        word_w_relative = sum(symb_w_relative)
+        scale = word_width / word_w_relative
+        symb_w = [int(sw * scale) for sw in symb_w_relative]
+        return symb_w
+
+
+    @staticmethod
+    def __get_coef(s: str) -> float:
+        if WriteHelper.have_script(s, True) or WriteHelper.have_script(s, False):
+            return 1.7  # TODO : remove magic numbers
+        else:
+            return 1
+
+    @staticmethod
+    def __get_symb_w(symb: str) -> float:
+        if symb in WriteHelper.widths.keys():
+            return WriteHelper.widths[symb]
+        else:
+            return 0.05  # пунктуация; TODO : remove magic numbers
+
+    @staticmethod
+    def is_space(symb: str) -> bool:
+        return symb in (' ', '\t', '\n')
+
+    @staticmethod
+    def to_hdf5_key(symb) -> str:
+        if symb in WriteHelper.punctuation:
+            return '<%s>' % symb
+        else:
+            return symb
+

@@ -21,16 +21,25 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 alphabet = [' '] + WriteHelper.trivial_alphabet + list(""",.:!?-—;()""")#alphabet
 NULL_SYMB = '^'
+advanced_alf = [s.upper() for s in WriteHelper.trivial_alphabet]
 
 
 def char_to_num(char: str) -> str:
-    return alphabet.index(char)
+    if char in alphabet:
+        return alphabet.index(char)
+    elif char == NULL_SYMB:
+        return len(alphabet)
+    else:
+        return len(alphabet) + 1 + advanced_alf.index(char)
 
 
 def num_to_char(num: Union[str, int]) -> str:
     if int(num) < len(alphabet):
         return alphabet[int(num)]
-    return NULL_SYMB
+    elif int(num) == len(alphabet):
+        return NULL_SYMB
+    else:
+        return advanced_alf[int(num) - len(alphabet) - 1]
 
 
 def str_to_array(string: str, lowercase: bool = True) -> np.ndarray:

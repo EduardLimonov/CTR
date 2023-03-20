@@ -190,7 +190,7 @@ class PicHandler:
         return self
 
     @staticmethod
-    def crop_by_blank(img, side: Side | list[Side] = Side.all, blank_line: int=255):
+    def crop_by_blank(img, side: Side | list[Side] = Side.all, blank_line: int=255, blank_delta=5):
         x_min, y_min, y_max, x_max = 0, 0, *img.shape
 
         if type(side) == list:
@@ -203,6 +203,7 @@ class PicHandler:
             else:
                 side = [side]
 
+        not_blank = np.abs(img - blank_line) >= blank_delta  # area where img pixels are not blank
         for s in side:
             """
             match s:
@@ -212,120 +213,10 @@ class PicHandler:
                 case Side.left: x_max = np.where(np.all(img != blank_line, axis=1))[-1]"""
             
             
-            if s == Side.left: x_min = np.where(np.all(img != blank_line, axis=0))[0]
-            elif s == Side.right: x_max = np.where(np.all(img != blank_line, axis=0))[-1]
-            elif s == Side.left: y_min = np.where(np.all(img != blank_line, axis=1))[0]
-            elif s == Side.left: x_max = np.where(np.all(img != blank_line, axis=1))[-1]
+            if s == Side.left: x_min = np.where(np.any(not_blank, axis=0))[0][0]
+            elif s == Side.right: x_max = np.where(np.any(not_blank, axis=0))[-1][-1] + 1
+            elif s == Side.top: y_min = np.where(np.any(not_blank, axis=1))[0][0]
+            elif s == Side.bottom: y_max = np.where(np.any(not_blank, axis=1))[-1][-1] + 1
 
         return img[y_min: y_max, x_min: x_max]
-
-
-if __name__ == '__main__':
-
-    fname = 'ex1.jpg'
-    f1_scan = '../test/handwritten1.jpg'
-    f1_photo = '../test/hand1.jpg'
-    f2_scan = '../test/handwritten2.jpg'
-    f2_photo = '../test/hand2.jpg'
-
-    def test_filers():
-        fname = f2_photo
-        size = 9
-        p1_scan_med, p1_scan_gaus = PicHandler(fname), PicHandler(fname)
-        img = p1_scan_med.get_copy()
-        p1_scan_med.apply_filter(MEDIAN_FILTER, size)
-        p1_scan_gaus.apply_filter(GAUSSIAN_FILTER, size)
-        view_images([img, p1_scan_med.img, p1_scan_gaus.img])
-
-
-    def test_bin():
-        p1_scan, p1_photo = PicHandler(f1_scan), PicHandler(f1_photo)
-        img_s = p1_scan.get_copy()
-        img_p = p1_photo.get_copy()
-
-        p1_scan.apply_adaptive_bin_filter()
-        p1_photo.apply_adaptive_bin_filter()
-
-        view_images([img_s, p1_scan.img])
-        view_images([img_p, p1_photo.img])
-
-
-    def test_bin_advanced(fname):
-        p1_photo = PicHandler(fname)
-        p1_low, p1_high = PicHandler(fname), PicHandler(fname)
-        p1_low.apply_adaptive_bin_filter(w=0.05, w_size=25)
-        p1_photo.apply_adaptive_bin_filter(w=0.1, w_size=25)
-        p1_high.apply_adaptive_bin_filter(w=0.15, w_size=25)
-
-        view_images([p1_low.img, p1_photo.img, p1_high.img])
-
-
-    def test_filter_bin(fname, **params):
-        size = 5
-        p1_scan_gaus = PicHandler(fname)
-        p1_filter_bin = PicHandler(fname)
-
-        p1_filter_bin.apply_filter(GAUSSIAN_FILTER, size)
-        p1_filter_bin.apply_adaptive_bin_filter(**params)
-
-        p1_scan_gaus.apply_adaptive_bin_filter(**params)
-        p1_scan_gaus.apply_filter(GAUSSIAN_FILTER, size)
-        p1_scan_gaus.apply_adaptive_bin_filter(**params)
-        view_images([p1_filter_bin.img, p1_scan_gaus.img])
-
-
-    test_bin()
-    '''test_filter_bin(fname=f1_scan)
-    test_filter_bin(fname=f1_photo, w=0.1, w_size=20)
-    test_filter_bin(fname=f2_scan, w=0.2, w_size=20)
-    test_filter_bin(fname=f2_photo, w=0.08, w_size=20)'''
-
-
-    def fixed_filters_test():
-        thresh = 200
-        for filter_size in range(1, 8, 2):
-            print(filter_size)
-            phg, phm = PicHandler(fname), PicHandler(fname)
-            pgd = PicHandler(fname)
-            default = phg.get_copy()
-
-            phg.apply_filter(GAUSSIAN_FILTER, filter_size)
-            phm.apply_filter(MEDIAN_FILTER, filter_size)
-
-            g, m = phg.get_copy(), phm.get_copy()
-
-            phg.apply_fixed_bin_filter(thresh)
-            phm.apply_fixed_bin_filter(thresh)
-            pgd.apply_fixed_bin_filter()
-
-            print(pgd.get_copy().shape)
-            view_images((pgd.get_copy(), phg.get_copy(), phm.get_copy())) #((default, g, m, pgd.get_copy(), phg.get_copy(), phm.get_copy()))
-
-    def adaptive_filters_test():
-        ph1, ph2 = PicHandler(fname), PicHandler(fname)
-        default = ph1.get_copy()
-
-        ph1.apply_adaptive_bin_filter(0)
-        #ph2.apply_adaptive_bin_filter(1)
-
-        view_images((default, ph1.get_copy(), ))#ph2.get_copy()))
-
-    def adaptive_and_noise_filters_test():
-        ph1, ph2, ph3 = PicHandler(fname), PicHandler(fname), PicHandler(fname)
-        default = ph1.get_copy()
-        fsize = 3
-
-        ph1.apply_filter(MEDIAN_FILTER, fsize)
-        ph1.apply_adaptive_bin_filter()
-
-        ph2.apply_filter(GAUSSIAN_FILTER, fsize)
-        ph2.apply_adaptive_bin_filter()
-
-        ph3.apply_filter(MEDIAN_FILTER, fsize)
-        ph3.apply_fixed_bin_filter(200)
-
-        view_images((ph1.get_copy(), ph2.get_copy(), ph3.get_copy()), )#stacking=VERTICAL)
-
-        a = ph3.make_zero_one().sum(axis=1)
-        print(a)
 
