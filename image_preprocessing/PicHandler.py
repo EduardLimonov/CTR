@@ -212,7 +212,6 @@ class PicHandler:
                 case Side.left: y_min = np.where(np.all(img != blank_line, axis=1))[0]
                 case Side.left: x_max = np.where(np.all(img != blank_line, axis=1))[-1]"""
             
-            
             if s == Side.left: x_min = np.where(np.any(not_blank, axis=0))[0][0]
             elif s == Side.right: x_max = np.where(np.any(not_blank, axis=0))[-1][-1] + 1
             elif s == Side.top: y_min = np.where(np.any(not_blank, axis=1))[0][0]
