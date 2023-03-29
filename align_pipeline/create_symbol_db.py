@@ -60,7 +60,7 @@ def decode(y_pred: str) -> str:
     return res.replace(NULL_SYMB, '')
 
 
-def append_to_dict(db_dict, k, v, sizes):
+def append_to_dict(db_dict, k, v, sizes, blank=255):
     if k not in sizes.keys():
         sizes[k] = 0
         db_dict.create_dataset(k, (DEFAULT_SAMPLES, *SHAPE_FOR_SYMBOL), compression="gzip", 
@@ -68,10 +68,11 @@ def append_to_dict(db_dict, k, v, sizes):
 
     if sizes[k] == len(db_dict[k]):
         # нужно увеличить
-       db_dict[k].resize((len(db_dict[k]) + DSHAPE, *default_shape))
+       db_dict[k].resize((len(db_dict[k]) + DSHAPE, *SHAPE_FOR_SYMBOL))
 
     v = rescale(v, downcale_k)
 
+    db_dict[k][sizes[k] : ] = np.full_like(db_dict[k][sizes[k] : ], blank)
     db_dict[k][sizes[k], : v.shape[0], : v.shape[1]] = v
     sizes[k] += 1
 
@@ -120,14 +121,14 @@ def improve_symb_borders(symbol_widths: list[tuple[str, int]], word_width: int,
 
 def create_db(db_path_name, checkpoint_path, dataloader, empty_space_threshold: float = 0.07):
     model = LModel.load_from_checkpoint(checkpoint_path, 
-        map_location=device, model=RecogModel3())
+        map_location=device, model=RecogModel3())#.to(device)
     model.eval()
     sizes = dict()
 
     with h5py.File(db_path_name, 'w') as f:
 
         for X, y in tqdm(dataloader):
-            y_pred = model(X.to(device))
+            y_pred = model(X)#.to(device))
 
             for i in range(len(X)):
                 # рассмотрим одно изображение в батче

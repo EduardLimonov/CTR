@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import *
 import sys
 sys.path.append('../..')
-from image_preprocessing.PicHandler import view_images
+from image_preprocessing.PicHandler import view_images, PicHandler
 from utils.WriteHelper import WriteHelper
 from utils.TextBlock import TextBlock
 from utils.geometry import Point, Rect
@@ -54,6 +54,7 @@ class ImgGenerator:
 
         for symb in word:
             new_symb_image = self.dbase[symb][random.randint(0, len(self.dbase[symb]) - 1)]
+            new_symb_image = PicHandler.crop_by_blank(new_symb_image)
             h, w = new_symb_image.shape
 
             if WriteHelper.have_script(symb, superscript=True):

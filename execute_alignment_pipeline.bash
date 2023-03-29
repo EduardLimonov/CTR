@@ -10,7 +10,7 @@ dataset_path="../resource/HKR"
 light_dataset_path="datasets/dataset.hdf5"
 checkpoint_path="learn_output"
 db_path="datasets/symb_db.hdf5"
-num_workers=8
+num_workers=1
 
 cd $source_patch
 python3 create_dataset.py $dataset_path $dataset_size $light_dataset_path
